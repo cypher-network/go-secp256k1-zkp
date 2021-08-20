@@ -7,8 +7,8 @@ package secp256k1
 
 // #include <stdlib.h>
 // #include "./secp256k1-zkp/include/secp256k1.h"
-
 import "C"
+
 import (
 	"crypto"
 	"errors"
