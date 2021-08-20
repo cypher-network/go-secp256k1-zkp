@@ -5,8 +5,11 @@
 // Package secp256k1 wraps secp256k1-zkp C library.
 package secp256k1
 
-// #include <stdlib.h>
-// #include "./secp256k1-zkp/include/secp256k1.h"
+/*
+#cgo LDFLAGS: -L secp256k1
+#cgo CFLAGS: -I./secp256k1-zkp/include
+#include <secp256k1.h>
+*/
 import "C"
 
 import (
