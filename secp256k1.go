@@ -237,7 +237,7 @@ func PubKeySerialize(ctx *Context, publicKey *PublicKey, flags uint) (int, []byt
 	return result, goBytes(output, C.int(outputLen)), nil
 }
 
-// PubKeyCreate
+// GeneratePubKey
 /** Compute the public key for a secret key.
  *
  *  Returns: 1: secret was valid, public key stores
@@ -269,7 +269,7 @@ func GenPrivKey(ctx *Context, rand io.Reader) PrivKey {
 			panic(err)
 		}
 
-		isValid, _ := SecKeyVerify(ctx, privKeyBytes[:])
+		isValid, _ := VerifyPrivKey(ctx, privKeyBytes[:])
 		if isValid == 1 {
 			break
 		}
@@ -278,7 +278,7 @@ func GenPrivKey(ctx *Context, rand io.Reader) PrivKey {
 	return privKeyBytes[:]
 }
 
-// SecKeyVerify
+// VerifyPrivKey
 /** Verify an ECDSA secret key.
  *
  *  Returns: 1: secret key is valid
@@ -286,7 +286,7 @@ func GenPrivKey(ctx *Context, rand io.Reader) PrivKey {
  *  Args:    ctx: pointer to a context object (cannot be NULL)
  *  In:      seckey: pointer to a 32-byte secret key (cannot be NULL)
  */
-func SecKeyVerify(ctx *Context, seckey []byte) (int, error) {
+func VerifyPrivKey(ctx *Context, seckey []byte) (int, error) {
 	if len(seckey) < 1 {
 		return 0, errors.New(PrivateKeyNullError)
 	}
