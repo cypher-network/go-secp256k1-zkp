@@ -251,7 +251,7 @@ func GeneratePubKey(ctx *Context, seckey PrivKey) (int, []byte, error) {
 		return 0, nil, errors.New(PrivateKeySizeError)
 	}
 
-	var pubkey []byte = make([]byte, 64)
+	var pubkey = make([]byte, 64)
 	var pubkeyPtr *C.secp256k1_pubkey = (*C.secp256k1_pubkey)(unsafe.Pointer(&pubkey[0]))
 
 	result := int(C.secp256k1_ec_pubkey_create(ctx.ctx, pubkeyPtr, cBuf(seckey[:])))
@@ -260,6 +260,14 @@ func GeneratePubKey(ctx *Context, seckey PrivKey) (int, []byte, error) {
 	}
 
 	return result, pubkey, nil
+}
+
+func ToSecp256k1PubKey(pubkey []byte) *PublicKey {
+	var pubkeyPtr *C.secp256k1_pubkey = (*C.secp256k1_pubkey)(unsafe.Pointer(&pubkey[0]))
+	pk := newPublicKey()
+	pk.pk = pubkeyPtr
+
+	return pk
 }
 
 // GeneratePrivKey generates a new secp256k1 private key using the provided reader.
