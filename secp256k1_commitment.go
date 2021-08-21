@@ -21,6 +21,7 @@ const (
 	BlindKeyParseError    			string = "Unable to parse this blind key"
 	SerializeCommitError    		string = "Unable to serialize this commitment"
 	CommitmentInternalSizeError    	string = "Commitment key must be exactly 64 bytes"
+	BlindSwitchError    			string = "Unable to switch blind"
 )
 
 // PedersenCommitment
@@ -152,6 +153,41 @@ var generatorPubJRaw = [64]byte {
 	0xfc, 0x56, 0xcf, 0x74, 0x9a, 0xa6, 0xa5, 0x65,
 	0x31, 0x6a, 0xa5, 0x03, 0x74, 0x42, 0x3f, 0x42,
 	0x53, 0x8f, 0xaa, 0x2c, 0xd3, 0x09, 0x3f, 0xa4,
+}
+
+// BlindSwitch
+/** Calculates the blinding factor x' = x + SHA256(xG+vH | xJ), used in the switch commitment x'G+vH
+ *
+ * Returns 1: Blinding factor successfully computed.
+ *         0: Error. Retry with different values.
+ *
+ * Args:           ctx: pointer to a context object
+ * Out:   blind_switch: blinding factor for the switch commitment
+ * In:           blind: pointer to a 32-byte blinding factor
+ *               value: unsigned 64-bit integer value to commit to
+ *           value_gen: value generator 'h'
+ *           blind_gen: blinding factor generator 'g'
+ *       switch_pubkey: pointer to public key 'j'
+ */
+func BlindSwitch(ctx *Context, value uint64, blind32 [32]byte) ([]byte, error)  {
+	if len(blind32) != BlindLength {
+		return nil, errors.New(BlindKeySizeError)
+	}
+
+	var blindOut32 = make([]byte, BlindLength)
+
+	blindSwitch32Ptr := (*C.uchar)(unsafe.Pointer(&blindOut32[0]))
+	blind32Ptr := (*C.uchar)(unsafe.Pointer(&blind32[0]))
+	generator64HPtr := (*C.secp256k1_generator)(unsafe.Pointer(&generatorH[0]))
+	generator64GPtr := (*C.secp256k1_generator)(unsafe.Pointer(&generatorG[0]))
+	generatorPubJRaw64GPtr := (*C.secp256k1_pubkey)(unsafe.Pointer(&generatorPubJRaw[0]))
+
+	result := int(C.secp256k1_blind_switch(ctx.ctx, blindSwitch32Ptr, blind32Ptr, C.uint64_t(value), generator64HPtr, generator64GPtr, generatorPubJRaw64GPtr))
+	if result != 1 {
+		return nil, errors.New(BlindSwitchError)
+	}
+
+	return blindOut32, nil
 }
 
 // Commit
