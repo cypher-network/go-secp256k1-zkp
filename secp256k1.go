@@ -5,11 +5,21 @@
 // Package secp256k1 wraps secp256k1-zkp C library.
 package secp256k1
 
+// #include <stdlib.h>
+// #include "./secp256k1-zkp/include/secp256k1.h"
+// #include <ext.h>
 /*
-#cgo LDFLAGS: -L secp256k1
-#cgo CFLAGS: -I./secp256k1-zkp/include
-#include <secp256k1.h>
+static secp256k1_pubkey** makePubkeyArray(int size) {
+        return calloc(sizeof(secp256k1_pubkey*), size);
+}
+static void setArrayPubkey(secp256k1_pubkey **a, secp256k1_pubkey *pubkey, int n) {
+        a[n] = pubkey;
+}
+static void freePubkeyArray(secp256k1_pubkey **a) {
+        free(a);
+}
 */
+// #cgo LDFLAGS: ${SRCDIR}/secp256k1-zkp/.libs/libsecp256k1.a -lgmp
 import "C"
 
 import (
@@ -73,14 +83,11 @@ type PublicKey struct {
 }
 
 var _ crypto.PrivateKey = PrivKey{}
-
-// PrivKey implements PrivKey.
 type PrivKey []byte
-
 
 func newContext() *Context {
 	return &Context{
-		ctx: &C.secp256k1_context{},
+		ctx: C.secp256k1_context_create_sign_verify(),
 	}
 }
 
@@ -102,9 +109,8 @@ func newPublicKey() *PublicKey {
  *
  *  See also secp256k1_context_randomize.
  */
-func ContextCreate(flags uint) (*Context, error) {
+func ContextCreate() (*Context, error) {
 	context := newContext()
-	context.ctx = C.secp256k1_context_create(C.uint(flags))
 	return context, nil
 }
 
@@ -172,7 +178,7 @@ func ContextRandomize(ctx *Context, seed32 [32]byte) int {
 	return int(C.secp256k1_context_randomize(ctx.ctx, cBuf(seed32[:])))
 }
 
-// PubkeyParse
+// PubKeyParse
 /** Parse a variable-length public key into the pubkey object.
  *
  *  Returns: 1 if the public key was fully valid.
@@ -187,7 +193,7 @@ func ContextRandomize(ctx *Context, seed32 [32]byte) int {
  *  0x03), uncompressed (65 bytes, header byte 0x04), or hybrid (65 bytes, header
  *  byte 0x06 or 0x07) format public keys.
  */
-func PubkeyParse(ctx *Context, publicKey []byte) (int, *PublicKey, error) {
+func PubKeyParse(ctx *Context, publicKey []byte) (int, *PublicKey, error) {
 	l := len(publicKey)
 	if l < 1 {
 		return 0, nil, errors.New(PublicKeySizeError)
@@ -201,7 +207,7 @@ func PubkeyParse(ctx *Context, publicKey []byte) (int, *PublicKey, error) {
 	return result, pk, nil
 }
 
-// PubkeySerialize
+// PubKeySerialize
 /** Serialize a pubkey object into a serialized byte sequence.
  *
  *  Returns: 1 always.
@@ -217,7 +223,7 @@ func PubkeyParse(ctx *Context, publicKey []byte) (int, *PublicKey, error) {
  *          flags:      SECP256K1_EC_COMPRESSED if serialization should be in
  *                      compressed format, otherwise SECP256K1_EC_UNCOMPRESSED.
  */
-func PubkeySerialize(ctx *Context, publicKey *PublicKey, flags uint) (int, []byte, error) {
+func PubKeySerialize(ctx *Context, publicKey *PublicKey, flags uint) (int, []byte, error) {
 	var size int
 	if flags == EcCompressed {
 		size = CompressedLength
@@ -231,7 +237,7 @@ func PubkeySerialize(ctx *Context, publicKey *PublicKey, flags uint) (int, []byt
 	return result, goBytes(output, C.int(outputLen)), nil
 }
 
-// PubkeyCreate
+// PubKeyCreate
 /** Compute the public key for a secret key.
  *
  *  Returns: 1: secret was valid, public key stores
@@ -240,7 +246,7 @@ func PubkeySerialize(ctx *Context, publicKey *PublicKey, flags uint) (int, []byt
  *  Out:    pubkey:     pointer to the created public key (cannot be NULL)
  *  In:     seckey:     pointer to a 32-byte private key (cannot be NULL)
  */
-func PubkeyCreate(ctx *Context, seckey []byte) (int, *PublicKey, error) {
+func PubKeyCreate(ctx *Context, seckey []byte) (int, *PublicKey, error) {
 	if len(seckey) != PrivateKeyLength {
 		return 0, nil, errors.New(PrivateKeySizeError)
 	}
@@ -263,7 +269,7 @@ func GenPrivKey(ctx *Context, rand io.Reader) PrivKey {
 			panic(err)
 		}
 
-		isValid, _ := SeckeyVerify(ctx.ctx, privKeyBytes[:])
+		isValid, _ := SecKeyVerify(ctx, privKeyBytes[:])
 		if isValid == 1 {
 			break
 		}
@@ -272,7 +278,7 @@ func GenPrivKey(ctx *Context, rand io.Reader) PrivKey {
 	return privKeyBytes[:]
 }
 
-// SeckeyVerify
+// SecKeyVerify
 /** Verify an ECDSA secret key.
  *
  *  Returns: 1: secret key is valid
@@ -280,7 +286,7 @@ func GenPrivKey(ctx *Context, rand io.Reader) PrivKey {
  *  Args:    ctx: pointer to a context object (cannot be NULL)
  *  In:      seckey: pointer to a 32-byte secret key (cannot be NULL)
  */
-func SeckeyVerify(ctx *Context, seckey []byte) (int, error) {
+func SecKeyVerify(ctx *Context, seckey []byte) (int, error) {
 	if len(seckey) < 1 {
 		return 0, errors.New(PrivateKeyNullError)
 	}
