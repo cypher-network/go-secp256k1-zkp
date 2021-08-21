@@ -246,21 +246,24 @@ func PubKeySerialize(ctx *Context, publicKey *PublicKey, flags uint) (int, []byt
  *  Out:    pubkey:     pointer to the created public key (cannot be NULL)
  *  In:     seckey:     pointer to a 32-byte private key (cannot be NULL)
  */
-func PubKeyCreate(ctx *Context, seckey []byte) (int, *PublicKey, error) {
+func GeneratePubKey(ctx *Context, seckey PrivKey) (int, []byte, error) {
 	if len(seckey) != PrivateKeyLength {
 		return 0, nil, errors.New(PrivateKeySizeError)
 	}
 
-	pk := newPublicKey()
-	result := int(C.secp256k1_ec_pubkey_create(ctx.ctx, pk.pk, cBuf(seckey[:])))
+	var pubkey []byte = make([]byte, 64)
+	var pubkeyPtr *C.secp256k1_pubkey = (*C.secp256k1_pubkey)(unsafe.Pointer(&pubkey[0]))
+
+	result := int(C.secp256k1_ec_pubkey_create(ctx.ctx, pubkeyPtr, cBuf(seckey[:])))
 	if result != 1 {
 		return result, nil, errors.New(PublicKeyCreateError)
 	}
-	return result, pk, nil
+
+	return result, pubkey, nil
 }
 
-// GenPrivKey generates a new secp256k1 private key using the provided reader.
-func GenPrivKey(ctx *Context, rand io.Reader) PrivKey {
+// GeneratePrivKey generates a new secp256k1 private key using the provided reader.
+func GeneratePrivKey(ctx *Context, rand io.Reader) PrivKey {
 	var privKeyBytes [PrivateKeyLength]byte
 	for {
 		privKeyBytes = [PrivateKeyLength]byte{}
