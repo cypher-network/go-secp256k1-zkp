@@ -14,11 +14,13 @@ import (
 )
 
 const (
-	BlindLength				int = 32
-	CommitmentSize			int = 33
-	CommitmentInternalSize	int = 64
-	BlindKeySizeError    	string = "Blind key must be exactly 32 bytes"
-	BlindKeyParseError    	string = "Unable to parse this blind key"
+	BlindLength						int = 32
+	CommitmentSize					int = 33
+	CommitmentInternalSize			int = 64
+	BlindKeySizeError    			string = "Blind key must be exactly 32 bytes"
+	BlindKeyParseError    			string = "Unable to parse this blind key"
+	SerializeCommitError    		string = "Unable to serialize this commitment"
+	CommitmentInternalSizeError    	string = "Commitment key must be exactly 64 bytes"
 )
 
 // PedersenCommitment
@@ -33,6 +35,12 @@ const (
  */
 type PedersenCommitment struct {
 	pc *C.secp256k1_pedersen_commitment
+}
+
+func newPedersenCommitment() *PedersenCommitment {
+	return &PedersenCommitment{
+		pc: &C.secp256k1_pedersen_commitment{},
+	}
 }
 
 /// Generator point G
@@ -167,6 +175,7 @@ func Commit(ctx *Context, value uint64, blind32 [32]byte) (int, []byte, error)  
 	}
 
 	var commit64 = make([]byte, CommitmentInternalSize)
+
 	commit64Ptr := (*C.secp256k1_pedersen_commitment)(unsafe.Pointer(&commit64[0]))
 	blind32Ptr := (*C.uchar)(unsafe.Pointer(&blind32[0]))
 	generator64HPtr := (*C.secp256k1_generator)(unsafe.Pointer(&generatorH[0]))
@@ -178,4 +187,36 @@ func Commit(ctx *Context, value uint64, blind32 [32]byte) (int, []byte, error)  
 	}
 
 	return result, commit64, nil
+}
+
+// SerializeCommit
+/** Serialize a commitment object into a serialized byte sequence.
+ *
+ *  Returns: 1 always.
+ *  Args:   ctx:        a secp256k1 context object.
+ *  Out:    output:     a pointer to a 33-byte byte array
+ *  In:     commit:     a pointer to a secp256k1_pedersen_commitment containing an
+ *                      initialized commitment
+ */
+func SerializeCommit(ctx *Context, commit *PedersenCommitment) (int, []byte, error)  {
+	var commit33 = make([]byte, CommitmentSize)
+	commit33Ptr := (*C.uchar)(unsafe.Pointer(&commit33[0]))
+
+	result := int(C.secp256k1_pedersen_commitment_serialize(ctx.ctx, commit33Ptr, commit.pc))
+	if result != 1 {
+		return result, nil, errors.New(SerializeCommitError)
+	}
+
+	return result, commit33, nil
+}
+
+func ToPedersenCommitment(commit64 []byte) (*PedersenCommitment, error)  {
+	if len(commit64) != CommitmentInternalSize {
+		return nil, errors.New(CommitmentInternalSizeError)
+	}
+
+	pedersenCommitment := newPedersenCommitment()
+	pedersenCommitment.pc = (*C.secp256k1_pedersen_commitment)(unsafe.Pointer(&commit64[0]))
+
+	return pedersenCommitment, nil
 }
