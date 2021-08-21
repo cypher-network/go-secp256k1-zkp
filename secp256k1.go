@@ -204,6 +204,7 @@ func PubKeyParse(ctx *Context, publicKey []byte) (int, *PublicKey, error) {
 	if result != 1 {
 		return result, nil, errors.New(PublicKeyParseError)
 	}
+
 	return result, pk, nil
 }
 
@@ -234,6 +235,7 @@ func PubKeySerialize(ctx *Context, publicKey *PublicKey, flags uint) (int, []byt
 	output := make([]C.uchar, size)
 	outputLen := C.size_t(size)
 	result := int(C.secp256k1_ec_pubkey_serialize(ctx.ctx, &output[0], &outputLen, publicKey.pk, C.uint(flags)))
+
 	return result, goBytes(output, C.int(outputLen)), nil
 }
 
@@ -305,6 +307,7 @@ func VerifyPrivKey(ctx *Context, seckey []byte) (int, error) {
 	if result != 1 {
 		return result, errors.New(PrivateKeyInvalidError)
 	}
+
 	return result, nil
 }
 
